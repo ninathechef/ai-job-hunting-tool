@@ -1,158 +1,205 @@
 # AI-Assisted Job Hunting Tool
 
-A Python automation pipeline that collects, filters, and evaluates job opportunities to make job searching more efficient.
+A Python-based job discovery pipeline that collects job listings, removes duplicates, filters unsuitable roles, and uses AI to help prioritize opportunities.
 
-I built this project to reduce the repetitive work involved in browsing job boards. Instead of manually reviewing hundreds of listings, the pipeline collects jobs from multiple sources, removes duplicates and clearly irrelevant positions, and uses AI to evaluate which opportunities are better suited to a junior candidate profile.
+## Why I Built This
+
+Searching multiple job boards and repeatedly reviewing similar listings can be time-consuming. I built this project to automate the repetitive parts of job discovery, especially when looking for junior-friendly opportunities. The goal is to make reviewing opportunities more focused, not to automate job applications.
 
 ## Features
 
-- Collects job listings from multiple sources
-- Removes duplicate and previously processed jobs
-- Filters out clearly senior positions
-- Uses Claude to evaluate job requirements
-- Identifies opportunities suitable for junior candidates
-- Stores processing state to avoid reviewing the same jobs repeatedly
-- Supports email delivery of filtered results
-- Supports automated runs with GitHub Actions
+- **Job collection:** Search supported job boards using [JobSpy](https://github.com/speedyapply/JobSpy), with optional Adzuna API results.
+- **Deduplication:** Skip repeated URLs within a run and across runs using state stored in a GitHub Gist.
+- **Rule-based filtering:** Exclude roles with configured seniority indicators; optionally exclude Adzuna results above a configured salary threshold.
+- **AI-assisted review:** Use Anthropic Claude to assess descriptions for language requirements, experience requirements, and seniority signals.
+- **Results:** Write shortlisted jobs and processed-URL state to a Gist, with optional email delivery.
+- **Automation:** Run manually through GitHub Actions. You can adapt the workflow for scheduled runs if desired.
+
+> The filtering criteria reflect one example of a junior-focused search. Adapt them to your own preferences before relying on the results.
 
 ## How It Works
 
 ```text
-Job Sources
-    │
-    ▼
-Job Collection
-    │
-    ▼
-Deduplication
-    │
-    ▼
-Seniority Pre-Filtering
-    │
-    ▼
-AI-Based Evaluation
-    │
-    ▼
-Relevant Opportunities
-    │
-    ├──► JSON / Gist
-    │
-    └──► Email
+JobSpy sources + optional Adzuna
+              |
+              v
+       Collect job listings
+              |
+              v
+   Deduplicate by job URL
+              |
+              v
+    Rule-based pre-filter
+              |
+              v
+  Claude description review
+              |
+              v
+       Shortlisted jobs
+              |
+              +----> GitHub Gist (jobs.json + seen URLs)
+              |
+              +----> Optional Gmail notification
 ```
 
-The pipeline combines rule-based filtering with LLM-assisted evaluation.
-
-Predictable criteria, such as obvious seniority indicators, are handled first using traditional filtering. The remaining job descriptions are then evaluated by Claude for requirements that require more contextual analysis.
+The script marks reviewed or pre-filtered URLs as seen so they are not repeatedly evaluated during the configured retention period. It does **not** submit job applications.
 
 ## Tech Stack
 
-- **Python** — core pipeline and processing logic
-- **JobSpy** — job listing collection
-- **Adzuna API** — additional job listings
-- **Anthropic Claude** — AI-assisted job evaluation
-- **GitHub Actions** — scheduled automation
-- **GitHub Gist** — processing state and result storage
-- **Gmail** — optional email delivery
+- Python, pandas and requests
+- JobSpy for job-board collection
+- Adzuna API (optional)
+- Anthropic Claude API for description evaluation
+- GitHub Gist API for results and processing state
+- Gmail SMTP (optional)
+- GitHub Actions for manual execution
 
 ## Project Structure
 
 ```text
 ai-job-hunting-tool/
-│
 ├── .github/
 │   └── workflows/
 │       └── scrape.yml
-│
 ├── job_scraper.py
 ├── requirements.txt
+├── .env.example
 ├── .gitignore
 └── README.md
 ```
 
-## Setup
+## Getting Started
 
-### 1. Clone the repository
+### 1. Clone and install
 
 ```bash
 git clone <your-repository-url>
 cd ai-job-hunting-tool
-```
-
-### 2. Create a virtual environment
-
-```bash
 python -m venv .venv
 ```
 
-Activate it on Windows:
+Activate the environment:
 
 ```bash
-.venv\Scripts\activate
-```
-
-On macOS or Linux:
-
-```bash
+# macOS / Linux
 source .venv/bin/activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
 ```
 
-### 3. Install dependencies
+Then install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+### 2. Configure credentials and preferences
 
-Depending on the features used, the application may require:
+Copy `.env.example` to `.env` and edit it for your own search. **The script reads operating-system environment variables; it does not automatically load `.env`.** Load or export the variables before running the script.
 
-```text
-CLAUDE_API_KEY
-GIST_TOKEN
-GIST_ID
-ADZUNA_APP_ID
-ADZUNA_API_KEY
-GMAIL_FROM
-GMAIL_APP_PASSWORD
+For example, on macOS/Linux with Bash, you can load a trusted `.env` containing simple `KEY=value` assignments:
+
+```bash
+set -a
+source .env
+set +a
 ```
 
-For local development, configure these as environment variables.
+Only source configuration files you created and trust. Alternatively, configure the variables directly in your shell or execution environment.
 
-For GitHub Actions, add the required values under:
+Required:
 
-**Repository Settings → Secrets and variables → Actions → New repository secret**
+| Variable | Purpose |
+|---|---|
+| `CLAUDE_API_KEY` | Anthropic API credential |
+| `GIST_TOKEN` | GitHub token with permission to access/update your Gist |
+| `GIST_ID` | Identifier of your own Gist |
 
-Never commit real credentials, API keys, passwords, or authentication tokens to the repository.
+Common search settings:
 
-### 5. Run the scraper
+| Variable | Purpose |
+|---|---|
+| `SEARCH_TERMS` | Comma-separated search keywords |
+| `JOB_SOURCES` | Comma-separated JobSpy sources, such as `indeed` |
+| `LOCATION` | Search location |
+| `INDEED_COUNTRY` | Country setting for Indeed |
+| `HOURS_OLD` | JobSpy listing age limit in hours |
+| `RESULTS_EACH` | Requested results per term/source |
+| `CLAUDE_MODEL` | Optional model override; leave unset to use the script default |
+
+Optional integrations:
+
+| Variable | Purpose |
+|---|---|
+| `ADZUNA_APP_ID`, `ADZUNA_API_KEY` | Enable Adzuna collection when both are set |
+| `GMAIL_FROM`, `GMAIL_APP_PASSWORD` | Enable Gmail delivery when both are set |
+| `GMAIL_TO` | Optional recipient; defaults to `GMAIL_FROM` |
+
+See `job_scraper.py` for additional settings, including delays, retention, filtering thresholds, and Claude request parameters.
+
+### 3. Create a Gist for state storage
+
+1. Sign in to [GitHub Gist](https://gist.github.com/).
+2. Create a new Gist with a file named **`jobs.json`** containing:
+
+   ```json
+   {
+     "last_updated": null,
+     "job_count": 0,
+     "jobs": [],
+     "seen_urls": {}
+   }
+   ```
+
+3. Copy that Gist's ID into `GIST_ID`.
+4. Configure `GIST_TOKEN` with appropriate access to that Gist.
+
+**Privacy note:** Public Gists are discoverable. Secret Gists are unlisted, **not private**: anyone with the URL can read them. Use a private storage option if your results require access controls. Never commit a real Gist ID, token, or personal results to this repository.
+
+### 4. Run locally
+
+After setting the environment variables:
 
 ```bash
 python job_scraper.py
 ```
 
-## Automation
+The script fetches prior state, collects and filters new jobs, updates the Gist, and optionally emails the results. API access, third-party site availability, and configured permissions are required for a successful run.
 
-The project includes a GitHub Actions workflow:
+## GitHub Actions
 
-```text
-.github/workflows/scrape.yml
-```
+The included workflow is located at `.github/workflows/scrape.yml` and uses **manual triggering** (`workflow_dispatch`), rather than an automatic daily schedule.
 
-Once the required secrets are configured, the workflow can run the pipeline automatically.
+To use it in your own repository:
 
-It can also be triggered manually from the repository's **Actions** tab.
+1. Add the required credentials as repository **Actions secrets**: `CLAUDE_API_KEY`, `GIST_TOKEN`, and `GIST_ID`.
+2. Add optional Adzuna or Gmail secrets if using those features.
+3. Open **Actions**, select **Daily Job Scraper**, and choose **Run workflow**.
 
-## Security
+The workflow's name is historical; its trigger is manual. If you want to customize search terms in Actions, add them to the workflow environment or adapt the workflow to read repository variables. Local `.env` files are not automatically available to GitHub Actions.
 
-Sensitive configuration is kept outside the source code using:
+## Customize the Filtering
 
-- Environment variables
-- GitHub Actions Secrets
+Two layers of filtering are implemented:
 
-If you fork or reuse this project, create your own API credentials and configure them separately.
+1. **Rule-based pre-filter:** Configurable seniority title keywords and job levels. For Adzuna results, a maximum salary threshold is also applied.
+2. **Claude review:** The prompt in `should_exclude()` excludes descriptions written in Dutch or French, roles requiring those languages, roles requiring more than two years of experience, and clearly senior roles.
+
+The Claude prompt is **defined in Python**, not fully configurable through `.env.example`. Edit the prompt to match your languages, experience level, and search priorities. AI classifications can be imperfect; review the original job listing before making decisions.
+
+## Security and Limitations
+
+- Keep credentials in environment variables or GitHub Actions Secrets, not source files.
+- Do not commit `.env`, `jobs.json`, personal results, or execution logs.
+- `.gitignore` does not remove files already committed to Git history; inspect history before publishing.
+- The Gist contains shortlisted jobs, processed URLs, and update timestamps. Choose its visibility deliberately.
+- The current code treats some source/API errors as empty results and keeps jobs when Claude evaluation fails. Review logs and output rather than assuming a run was fully successful.
+- Deduplication is based on job URLs, so the same position at different URLs may appear more than once.
+- Salary filtering is a simple threshold for Adzuna results and does not normalize currencies or pay periods.
+- Respect each data source's terms, robots/access rules where applicable, rate limits, and API usage requirements.
+- Third-party APIs may incur costs. This project does not guarantee complete listings or accurate job suitability assessments.
 
 ## Disclaimer
 
-This is a personal automation and learning project.
-
-If you reuse or modify it, make sure your use of third-party websites, APIs, and job-listing services complies with their applicable terms, policies, and rate limits.
+This is a personal learning and automation project shared to demonstrate a reproducible approach to AI-assisted job discovery. It is not affiliated with the job boards or API providers used. Adapt and test it for your own needs before relying on it.
