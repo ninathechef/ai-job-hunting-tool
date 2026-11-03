@@ -1,0 +1,43 @@
+name: Daily Job Scraper
+
+on:
+  schedule:
+    # 07:00 Belgium time (CEST = UTC+2 in summer, CET = UTC+1 in winter)
+    - cron: "0 5 * * *"   # 05:00 UTC = 07:00 Belgium
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run job scraper
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          GIST_TOKEN:     ${{ secrets.GIST_TOKEN }}
+          GIST_ID:        ${{ secrets.GIST_ID }}
+          # Optional: add these secrets for Adzuna (covers Stepstone.be, Jobat.be)
+          # Sign up free at https://developer.adzuna.com
+          ADZUNA_APP_ID:  ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_API_KEY: ${{ secrets.ADZUNA_API_KEY }}
+          # Gmail delivery: GitHub Actions emails you the jobs JSON so
+          # your Cowork scheduled task can read it without URL provenance issues.
+          # GMAIL_FROM: your Gmail address (e.g. you@gmail.com)
+          # GMAIL_APP_PASSWORD: a Gmail App Password (NOT your main password)
+          #   Create one at: https://myaccount.google.com/apppasswords
+          GMAIL_FROM:         ${{ secrets.GMAIL_FROM }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python job_scraper.py
