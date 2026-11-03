@@ -177,7 +177,7 @@ def update_gist(jobs: list[dict], seen_urls: dict[str, str]) -> str:
     )
     response.raise_for_status()
     gist_url = response.json().get("html_url", "")
-    print(f"Gist updated: {gist_url}")
+    print("Gist updated successfully.")
     return gist_url
 
 
