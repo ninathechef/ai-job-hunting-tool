@@ -1,0 +1,4 @@
+python-jobspy>=1.1.80
+anthropic>=0.40.0
+requests>=2.31.0
+pandas>=2.0.0
