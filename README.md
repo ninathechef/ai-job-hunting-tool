@@ -121,7 +121,7 @@ Common search settings:
 | Variable | Purpose |
 |---|---|
 | `SEARCH_TERMS` | Comma-separated search keywords |
-| `JOB_SOURCES` | Comma-separated JobSpy sources, such as `indeed` |
+| `JOB_SOURCES` | Comma-separated JobSpy sources, such as `indeed, linkedin` |
 | `LOCATION` | Search location |
 | `INDEED_COUNTRY` | Country setting for Indeed |
 | `HOURS_OLD` | JobSpy listing age limit in hours |
@@ -169,15 +169,20 @@ The script fetches prior state, collects and filters new jobs, updates the Gist,
 
 ## GitHub Actions
 
-The included workflow is located at `.github/workflows/scrape.yml` and uses **manual triggering** (`workflow_dispatch`), rather than an automatic daily schedule.
+The included workflow is located at `.github/workflows/scrape.yml` and supports both:
+
+- **Automatic daily execution** through a scheduled trigger
+- **Manual execution** through `workflow_dispatch`
 
 To use it in your own repository:
 
 1. Add the required credentials as repository **Actions secrets**: `CLAUDE_API_KEY`, `GIST_TOKEN`, and `GIST_ID`.
 2. Add optional Adzuna or Gmail secrets if using those features.
-3. Open **Actions**, select **Daily Job Scraper**, and choose **Run workflow**.
+3. Ensure Actions are enabled for the repository and that the workflow file is present on the default branch.
+4. For a manual run, open **Actions**, select **Daily Job Scraper**, and choose **Run workflow**.
 
-The workflow's name is historical; its trigger is manual. If you want to customize search terms in Actions, add them to the workflow environment or adapt the workflow to read repository variables. Local `.env` files are not automatically available to GitHub Actions.
+The scheduled run is configured for `05:00 UTC` each day. This is `06:00` in Belgium during winter time and `07:00` during summer time. GitHub Actions schedules use UTC and can sometimes start several minutes late.
+
 
 ## Customize the Filtering
 
